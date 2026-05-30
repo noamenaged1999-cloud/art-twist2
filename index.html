@@ -18,7 +18,7 @@ button:hover { background:#007a80; }
 input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; background:#222; color:white; font-size:16px; text-align:center; width: 80%; }
 #qrcode { background: white; padding: 10px; display: inline-block; border-radius: 8px; margin-top: 15px; }
 .flex-center { display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.admin-panel { background: #222; border: 2px dashed #ff5722; padding: 15px; margin-top: 30px; border-radius: 12px; display: none; }
+.admin-panel { background: #222; border: 2px dashed #ff5722; padding: 15px; margin-top: 30px; border-radius: 12px; }
 .admin-btn { background: #ff5722; }
 .admin-btn:hover { background: #e64a19; }
 .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; background: #333; font-weight: bold; margin-bottom: 10px; }
@@ -44,7 +44,10 @@ input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; back
     <div id="qrcode"></div>
   </div>
   <br>
-  <button onclick="startAdminGame()" style="background:#4caf50;">הכל מוכן? התחל להקרין את המשחק! 🎬</button>
+  <h2 style="margin-top:20px;">👥 שחקנים בחדר:</h2>
+  <div id="waitingRoomPlayers" style="font-size:20px; font-weight:bold; color:#00adb5;">אין שחקנים כרגע...</div>
+  <br>
+  <button onclick="startAdminGame()" style="background:#4caf50; font-size:18px; padding:15px 30px;">הכל מוכן? התחל להקרין את המשחק! 🎬</button>
 </div>
 
 <div id="gameArea" style="display:none">
@@ -81,7 +84,7 @@ input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; back
   <h2>🏆 טבלת מובילים כללית</h2>
   <div id="board"></div>
 
-  <div id="adminPanel" class="admin-panel">
+  <div id="adminPanel" class="admin-panel" style="display:none;">
     <p style="color:#ff5722; margin-top:0; font-weight:bold;">🎛 שלטי ניהול משחק (למקרן בלבד):</p>
     <button class="admin-btn" onclick="setStage('vote')">1. חסום כתיבה ועבור לשלב ההצבעה 🗳️</button>
     <button class="admin-btn" onclick="setStage('results')">2. חשוף שמות ותוצאות סיבוב 📊</button>
@@ -99,7 +102,6 @@ const db = firebase.database();
 
 let myName = "";
 let isPlayer = false;
-let hasAnswered = false;
 
 const rounds = [
  { title:"מונה ליזה", artist:"לאונרדו דה וינצ'י", img:"https://upload.wikimedia.org/wikipedia/commons/6/6a/Mona_Lisa.jpg", question:"למה לדעתכם הציור הזה נהיה כל כך מפורסם בעולם?" },
@@ -107,18 +109,23 @@ const rounds = [
  { title:"הנשיקה", artist:"גוסטב קלימט", img:"https://upload.wikimedia.org/wikipedia/commons/4/4d/The_Kiss_-_Gustav_Klimt_-_Google_Cultural_Institute.jpg", question:"מה באמת קורה בין שתי הדמויות ברגע זה?" }
 ];
 
-// בדיקה האם הגעתי כשחקן מה-QR
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('role') === 'player') {
   isPlayer = true;
   document.getElementById("joinSection").style.display = "block";
 } else {
-  // אני המנהל במחשב
   document.getElementById("adminQrView").style.display = "block";
   new QRCode(document.getElementById("qrcode"), { 
     text: window.location.href.split('?')[0] + "?role=player", 
     width: 180, 
     height: 180 
+  });
+  
+  // מציג למנהל את רשימת השחקנים שנכנסים בזמן אמת
+  db.ref('players').on('value', snap => {
+     let pData = snap.val() || {};
+     let names = Object.keys(pData);
+     document.getElementById("waitingRoomPlayers").innerText = names.length > 0 ? names.join(", ") : "אין שחקנים כרגע...";
   });
 }
 
@@ -146,7 +153,6 @@ function submitPlayerAnswer(){
  if(!text) return;
  
  db.ref('answers').push({ name: myName, text: text, votes: 0 });
- hasAnswered = true;
  document.getElementById("answerBox").style.display = "none";
  document.getElementById("waitMessage").style.display = "block";
 }
@@ -179,7 +185,6 @@ function listenToGame() {
         document.getElementById("answerInput").value = "";
         document.getElementById("answerBox").style.display = "block";
         document.getElementById("waitMessage").style.display = "none";
-        hasAnswered = false;
      }
   });
 
