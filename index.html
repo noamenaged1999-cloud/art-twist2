@@ -39,7 +39,7 @@ input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; back
 
 <div id="adminQrView" style="display:none;">
   <h3>הזמנת שחקנים לקבוצה</h3>
-  <p>סרקו את הקוד מהטלפון כדי להיכנס כשחקנים:</p>
+  <p>סרקו את הקוד מהטלפון או כנסו לקישור כדי להיכנס כשחקנים:</p>
   <div class="flex-center">
     <div id="qrcode"></div>
   </div>
@@ -96,7 +96,8 @@ input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; back
 </div>
 
 <script>
-const firebaseConfig = { databaseURL: "https://art-twist-default-rtdb.firebaseio.com/" };
+// החיבור המתוקן והמדויק לפרויקט ה-Firebase שלך
+const firebaseConfig = { databaseURL: "https://art-twist-default-rtdb.firebaseio.com" };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
@@ -113,14 +114,22 @@ const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('role') === 'player') {
   isPlayer = true;
   document.getElementById("joinSection").style.display = "block";
+  listenToGame();
 } else {
   document.getElementById("adminQrView").style.display = "block";
+  
+  // יצירת כתובת נקייה לחלוטין עבור ה-QR
+  let playerUrl = window.location.origin + window.location.pathname + "?role=player";
   new QRCode(document.getElementById("qrcode"), { 
-    text: window.location.href.split('?')[0] + "?role=player", 
+    text: playerUrl, 
     width: 180, 
     height: 180 
   });
   
+  // מאפס את המערכת בהפעלה מחדש של המחשב כדי שלא תיתקע
+  db.ref('answers').remove();
+  db.ref('gameStatus/stage').set('write');
+
   // מציג למנהל את רשימת השחקנים שנכנסים בזמן אמת
   db.ref('players').on('value', snap => {
      let pData = snap.val() || {};
@@ -141,11 +150,9 @@ function joinGameAsPlayer(){
  myName = document.getElementById("playerNameInput").value.trim();
  if(!myName) return alert("אנא הכנס שם תקין");
 
- db.ref('players/' + myName).transaction((score) => score === null ? 0 : score);
+ db.ref('players/' + myName).set(0);
  document.getElementById("joinSection").style.display = "none";
  document.getElementById("gameArea").style.display = "block";
-
- listenToGame();
 }
 
 function submitPlayerAnswer(){
@@ -197,11 +204,11 @@ function listenToGame() {
 
      if(stage === 'write') {
         document.getElementById("statusBadge").innerText = "✍️ שלב הכתיבה";
-        if(isPlayer) document.getElementById("writeStage").style.display = "block";
+        if(isPlayer && myName !== "מנהל") document.getElementById("writeStage").style.display = "block";
      } 
      else if(stage === 'vote') {
         document.getElementById("statusBadge").innerText = "🗳️ שלב ההצבעה";
-        if(isPlayer) {
+        if(isPlayer && myName !== "מנהל") {
           document.getElementById("voteStage").style.display = "block";
           fetchAnswersForVoting();
         }
