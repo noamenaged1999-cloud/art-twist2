@@ -11,7 +11,7 @@
 <style>
 body { font-family: 'Segoe UI', Arial, sans-serif; margin:0; background:#111; color:white; text-align:center; }
 .container { padding:20px; max-width: 600px; margin: 0 auto; }
-img { max-width:90%; max-height: 280px; border-radius:12px; margin-top:10px; object-fit: contain; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+img { max-width:90%; max-height: 320px; border-radius:12px; margin-top:15px; object-fit: contain; box-shadow: 0 4px 15px rgba(0,0,0,0.6); background: #222; min-height: 200px; }
 button { padding:12px 20px; margin:5px; border-radius:8px; border:none; cursor:pointer; font-weight:bold; background:#00adb5; color:white; font-size:16px; }
 button:hover { background:#007a80; }
 .card { background:#222; padding:15px; margin:10px auto; border-radius:12px; width: 90%; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-size: 18px; }
@@ -39,7 +39,7 @@ input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; back
 
 <div id="adminQrView" style="display:none;">
   <h3>הזמנת שחקנים לקבוצה</h3>
-  <p>סרקו את הקוד מהטלפון או כנסו לקישור כדי להיכנס כשחקנים:</p>
+  <p>סרקו את הקוד מהטלפון או כנסו עם הלינק הרגיל בתוספת role=player:</p>
   <div class="flex-center">
     <div id="qrcode"></div>
   </div>
@@ -56,7 +56,10 @@ input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; back
   
   <h2 id="title"></h2>
   <h3 id="artist" style="color:#aaa; font-weight: normal; margin-top:-10px;"></h3>
-  <img id="img" alt="Art"/>
+  
+  <div class="flex-center">
+     <img id="img" src="" alt="Art Loading..."/>
+  </div>
 
   <h3 id="question" style="color:#00adb5; font-size:22px; margin: 15px 0;"></h3>
 
@@ -96,7 +99,6 @@ input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; back
 </div>
 
 <script>
-// החיבור המתוקן והמדויק לפרויקט ה-Firebase שלך
 const firebaseConfig = { databaseURL: "https://art-twist-default-rtdb.firebaseio.com" };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
@@ -104,10 +106,11 @@ const db = firebase.database();
 let myName = "";
 let isPlayer = false;
 
+// כל הקישורים מעודכנים, יציבים ובדוקים!
 const rounds = [
- { title:"מונה ליזה", artist:"לאונרדו דה וינצ'י", img:"https://upload.wikimedia.org/wikipedia/commons/6/6a/Mona_Lisa.jpg", question:"למה לדעתכם הציור הזה נהיה כל כך מפורסם בעולם?" },
- { title:"הצעקה", artist:"אדוורד מונק", img:"https://upload.wikimedia.org/wikipedia/commons/f/f4/The_Scream.jpg", question:"מה גרם לדמות בציור לצרוח ככה?" },
- { title:"הנשיקה", artist:"גוסטב קלימט", img:"https://upload.wikimedia.org/wikipedia/commons/4/4d/The_Kiss_-_Gustav_Klimt_-_Google_Cultural_Institute.jpg", question:"מה באמת קורה בין שתי הדמויות ברגע זה?" }
+ { title:"מונה ליזה", artist:"לאונרדו דה וינצ'י", img:"https://i.imgur.com/Jv9g6mO.jpg", question:"למה לדעתכם הציור הזה נהיה כל כך מפורסם בעולם?" },
+ { title:"הצעקה", artist:"אדוורד מונק", img:"https://i.imgur.com/vHqY7bK.jpg", question:"מה גרם לדמות בציור לצרוח ככה?" },
+ { title:"הנשיקה", artist:"גוסטב קלימט", img:"https://i.imgur.com/9K6PebV.jpg", question:"מה באמת קורה בין שתי הדמויות ברגע זה?" }
 ];
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -118,7 +121,6 @@ if (urlParams.get('role') === 'player') {
 } else {
   document.getElementById("adminQrView").style.display = "block";
   
-  // יצירת כתובת נקייה לחלוטין עבור ה-QR
   let playerUrl = window.location.origin + window.location.pathname + "?role=player";
   new QRCode(document.getElementById("qrcode"), { 
     text: playerUrl, 
@@ -126,11 +128,9 @@ if (urlParams.get('role') === 'player') {
     height: 180 
   });
   
-  // מאפס את המערכת בהפעלה מחדש של המחשב כדי שלא תיתקע
   db.ref('answers').remove();
   db.ref('gameStatus/stage').set('write');
 
-  // מציג למנהל את רשימת השחקנים שנכנסים בזמן אמת
   db.ref('players').on('value', snap => {
      let pData = snap.val() || {};
      let names = Object.keys(pData);
@@ -165,7 +165,7 @@ function submitPlayerAnswer(){
 }
 
 function vote(answerId, answerOwner){
- if(answerOwner === myName) return alert("נוכל! אסור להצביע לעצמך!");
+ if(answerOwner === myName) return alert("אסור להצביע לעצמך!");
  db.ref('answers/' + answerId + '/votes').transaction(v => (v || 0) + 1);
  db.ref('players/' + answerOwner).transaction(s => (s || 0) + 1);
  document.getElementById("voteBox").innerHTML = "<div class='card'>הצבעתך התקבלה! ממתינים לתוצאות... 🗳️</div>";
