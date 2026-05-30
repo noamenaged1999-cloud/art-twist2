@@ -1,260 +1,120 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="he">
 <head>
-<meta charset="UTF-8" />
-<title>Art Twist LIVE</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
+<meta charset="UTF-8">
+<title>Art Kahoot Game</title>
 <style>
-body { font-family: 'Segoe UI', Arial, sans-serif; margin:0; background:#111; color:white; text-align:center; }
-.container { padding:20px; max-width: 600px; margin: 0 auto; }
-img { max-width:90%; max-height: 320px; border-radius:12px; margin-top:15px; object-fit: contain; box-shadow: 0 4px 15px rgba(0,0,0,0.6); background: #222; min-height: 200px; }
-button { padding:12px 20px; margin:5px; border-radius:8px; border:none; cursor:pointer; font-weight:bold; background:#00adb5; color:white; font-size:16px; }
-button:hover { background:#007a80; }
-.card { background:#222; padding:15px; margin:10px auto; border-radius:12px; width: 90%; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-size: 18px; }
-input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; background:#222; color:white; font-size:16px; text-align:center; width: 80%; }
-#qrcode { background: white; padding: 10px; display: inline-block; border-radius: 8px; margin-top: 15px; }
-.flex-center { display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.admin-panel { background: #222; border: 2px dashed #ff5722; padding: 15px; margin-top: 30px; border-radius: 12px; }
-.admin-btn { background: #ff5722; }
-.admin-btn:hover { background: #e64a19; }
-.status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; background: #333; font-weight: bold; margin-bottom: 10px; }
+body { font-family: Arial; background:#111; color:white; text-align:center; }
+.card { background:#222; margin:10px; padding:15px; border-radius:12px; }
+button { padding:10px; margin:5px; border-radius:10px; border:none; cursor:pointer; }
+img { max-width:300px; border-radius:10px; }
 </style>
 </head>
 <body>
 
-<div class="container">
+<h1>🎨 ART KAHOOT</h1>
 
-<h1>🎨 Art Twist LIVE</h1>
-
-<div id="joinSection" style="display:none;">
-  <p>הכנס את שמך כדי להצטרף למשחק:</p>
-  <input id="playerNameInput" placeholder="שם שחקן..."/>
-  <br>
-  <button onclick="joinGameAsPlayer()">הצטרף למשחק 🎮</button>
+<div id="start">
+<input id="name" placeholder="שם שלך"/>
+<button onclick="start()">התחל</button>
 </div>
 
-<div id="adminQrView" style="display:none;">
-  <h3>הזמנת שחקנים לקבוצה</h3>
-  <p>סרקו את הקוד מהטלפון או כנסו עם הלינק הרגיל בתוספת role=player:</p>
-  <div class="flex-center">
-    <div id="qrcode"></div>
-  </div>
-  <br>
-  <h2 style="margin-top:20px;">👥 שחקנים בחדר:</h2>
-  <div id="waitingRoomPlayers" style="font-size:20px; font-weight:bold; color:#00adb5;">אין שחקנים כרגע...</div>
-  <br>
-  <button onclick="startAdminGame()" style="background:#4caf50; font-size:18px; padding:15px 30px;">הכל מוכן? התחל להקרין את המשחק! 🎬</button>
-</div>
+<div id="game" style="display:none">
 
-<div id="gameArea" style="display:none">
+<h2 id="title"></h2>
+<h3 id="artist"></h3>
+<img id="img"/>
+<p id="question"></p>
 
-  <div id="statusBadge" class="status-badge">טוען מצב...</div>
-  
-  <h2 id="title"></h2>
-  <h3 id="artist" style="color:#aaa; font-weight: normal; margin-top:-10px;"></h3>
-  
-  <div class="flex-center">
-     <img id="img" src="" alt="Art Loading..."/>
-  </div>
+<div id="answers"></div>
 
-  <h3 id="question" style="color:#00adb5; font-size:22px; margin: 15px 0;"></h3>
+<h2>🏆 ניקוד</h2>
+<div id="score"></div>
 
-  <div id="writeStage" style="display:none;">
-    <div id="answerBox">
-      <input id="answerInput" placeholder="התשובה המצחיקה/יצירתית שלך..."/>
-      <br>
-      <button onclick="submitPlayerAnswer()">שלח תשובה חסויה 🔒</button>
-    </div>
-    <div id="waitMessage" style="display:none;" class="card">
-      תשובתך נשמרה בסוד! מחכים על המסך הגדול שכולם יסיימו... ⏳
-    </div>
-  </div>
-
-  <div id="voteStage" style="display:none;">
-    <div id="voteBox"></div>
-  </div>
-
-  <div id="resultsStage" style="display:none;">
-    <h3>📊 תשובות השחקנים:</h3>
-    <div id="answersResults"></div>
-  </div>
-
-  <hr style="border-color:#333; margin:20px 0;">
-  <h2>🏆 טבלת מובילים כללית</h2>
-  <div id="board"></div>
-
-  <div id="adminPanel" class="admin-panel" style="display:none;">
-    <p style="color:#ff5722; margin-top:0; font-weight:bold;">🎛 שלטי ניהול משחק (למקרן בלבד):</p>
-    <button class="admin-btn" onclick="setStage('vote')">1. חסום כתיבה ועבור לשלב ההצבעה 🗳️</button>
-    <button class="admin-btn" onclick="setStage('results')">2. חשוף שמות ותוצאות סיבוב 📊</button>
-    <button class="admin-btn" style="background:#4caf50;" onclick="nextRound()">3. עבר לסיבוב הבא ➔</button>
-  </div>
-
-</div>
+<button onclick="next()">שאלה הבאה</button>
 
 </div>
 
 <script>
-const firebaseConfig = { databaseURL: "https://art-twist-default-rtdb.firebaseio.com" };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
 
-let myName = "";
-let isPlayer = false;
+let player = "";
+let score = 0;
+let round = 0;
 
-// כל הקישורים מעודכנים, יציבים ובדוקים!
-const rounds = [
- { title:"מונה ליזה", artist:"לאונרדו דה וינצ'י", img:"https://i.imgur.com/Jv9g6mO.jpg", question:"למה לדעתכם הציור הזה נהיה כל כך מפורסם בעולם?" },
- { title:"הצעקה", artist:"אדוורד מונק", img:"https://i.imgur.com/vHqY7bK.jpg", question:"מה גרם לדמות בציור לצרוח ככה?" },
- { title:"הנשיקה", artist:"גוסטב קלימט", img:"https://i.imgur.com/9K6PebV.jpg", question:"מה באמת קורה בין שתי הדמויות ברגע זה?" }
+const q = [
+{
+title:"מונה ליזה",
+artist:"Leonardo da Vinci",
+img:"https://upload.wikimedia.org/wikipedia/commons/6/6a/Mona_Lisa.jpg",
+question:"למה הציור הזה כל כך מפורסם?",
+answers:["גניבה מהמוזיאון","חיוך מסתורי","כי הוא עתיק","כל התשובות נכונות"],
+correct:3
+},
+{
+title:"הצעקה",
+artist:"Edvard Munch",
+img:"https://upload.wikimedia.org/wikipedia/commons/f/f4/The_Scream.jpg",
+question:"מה הדמות מרגישה?",
+answers:["שמחה","פחד וחרדה","שעמום","כעס"],
+correct:1
+},
+{
+title:"ליל כוכבים",
+artist:"Van Gogh",
+img:"https://upload.wikimedia.org/wikipedia/commons/e/ea/The_Starry_Night.jpg",
+question:"מה מיוחד בציור?",
+answers:["כוכבים זזים","שקט פנימי","ים סוער","שחור לבן"],
+correct:1
+}
 ];
 
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('role') === 'player') {
-  isPlayer = true;
-  document.getElementById("joinSection").style.display = "block";
-  listenToGame();
+function start(){
+player = document.getElementById("name").value;
+document.getElementById("start").style.display="none";
+document.getElementById("game").style.display="block";
+load();
+}
+
+function load(){
+let r = q[round];
+document.getElementById("title").innerText = r.title;
+document.getElementById("artist").innerText = r.artist;
+document.getElementById("img").src = r.img;
+document.getElementById("question").innerText = r.question;
+
+let div = document.getElementById("answers");
+div.innerHTML="";
+
+r.answers.forEach((a,i)=>{
+div.innerHTML += `<button onclick="pick(${i})">${a}</button>`;
+});
+}
+
+function pick(i){
+if(i === q[round].correct){
+score += 10;
+alert("נכון! +10 נקודות 🎉");
 } else {
-  document.getElementById("adminQrView").style.display = "block";
-  
-  let playerUrl = window.location.origin + window.location.pathname + "?role=player";
-  new QRCode(document.getElementById("qrcode"), { 
-    text: playerUrl, 
-    width: 180, 
-    height: 180 
-  });
-  
-  db.ref('answers').remove();
-  db.ref('gameStatus/stage').set('write');
-
-  db.ref('players').on('value', snap => {
-     let pData = snap.val() || {};
-     let names = Object.keys(pData);
-     document.getElementById("waitingRoomPlayers").innerText = names.length > 0 ? names.join(", ") : "אין שחקנים כרגע...";
-  });
+alert("טעות ❌");
+}
+updateScore();
 }
 
-function startAdminGame() {
-  document.getElementById("adminQrView").style.display = "none";
-  document.getElementById("adminPanel").style.display = "block";
-  document.getElementById("gameArea").style.display = "block";
-  myName = "מנהל";
-  listenToGame();
+function updateScore(){
+document.getElementById("score").innerText =
+player + ": " + score;
 }
 
-function joinGameAsPlayer(){
- myName = document.getElementById("playerNameInput").value.trim();
- if(!myName) return alert("אנא הכנס שם תקין");
-
- db.ref('players/' + myName).set(0);
- document.getElementById("joinSection").style.display = "none";
- document.getElementById("gameArea").style.display = "block";
+function next(){
+round++;
+if(round >= q.length) {
+alert("נגמר המשחק! ניקוד: " + score);
+round = 0;
+}
+load();
 }
 
-function submitPlayerAnswer(){
- let text = document.getElementById("answerInput").value.trim();
- if(!text) return;
- 
- db.ref('answers').push({ name: myName, text: text, votes: 0 });
- document.getElementById("answerBox").style.display = "none";
- document.getElementById("waitMessage").style.display = "block";
-}
-
-function vote(answerId, answerOwner){
- if(answerOwner === myName) return alert("אסור להצביע לעצמך!");
- db.ref('answers/' + answerId + '/votes').transaction(v => (v || 0) + 1);
- db.ref('players/' + answerOwner).transaction(s => (s || 0) + 1);
- document.getElementById("voteBox").innerHTML = "<div class='card'>הצבעתך התקבלה! ממתינים לתוצאות... 🗳️</div>";
-}
-
-function setStage(stageName) { db.ref('gameStatus/stage').set(stageName); }
-
-function nextRound(){
- db.ref('gameStatus/round').transaction(r => ((r || 0) + 1) % rounds.length);
- db.ref('answers').remove();
- db.ref('gameStatus/stage').set('write');
-}
-
-function listenToGame() {
-  db.ref('gameStatus/round').on('value', snap => {
-     let rIdx = snap.val() || 0;
-     let r = rounds[rIdx];
-     document.getElementById("title").innerText = r.title;
-     document.getElementById("artist").innerText = r.artist;
-     document.getElementById("img").src = r.img;
-     document.getElementById("question").innerText = r.question;
-     
-     if(isPlayer) {
-        document.getElementById("answerInput").value = "";
-        document.getElementById("answerBox").style.display = "block";
-        document.getElementById("waitMessage").style.display = "none";
-     }
-  });
-
-  db.ref('gameStatus/stage').on('value', snap => {
-     let stage = snap.val() || 'write';
-     
-     document.getElementById("writeStage").style.display = "none";
-     document.getElementById("voteStage").style.display = "none";
-     document.getElementById("resultsStage").style.display = "none";
-
-     if(stage === 'write') {
-        document.getElementById("statusBadge").innerText = "✍️ שלב הכתיבה";
-        if(isPlayer && myName !== "מנהל") document.getElementById("writeStage").style.display = "block";
-     } 
-     else if(stage === 'vote') {
-        document.getElementById("statusBadge").innerText = "🗳️ שלב ההצבעה";
-        if(isPlayer && myName !== "מנהל") {
-          document.getElementById("voteStage").style.display = "block";
-          fetchAnswersForVoting();
-        }
-     } 
-     else if(stage === 'results') {
-        document.getElementById("statusBadge").innerText = "📊 תוצאות הסיבוב";
-        document.getElementById("resultsStage").style.display = "block";
-        fetchAnswersForResults();
-     }
-  });
-
-  db.ref('players').on('value', snap => {
-     let pData = snap.val() || {};
-     let bDiv = document.getElementById("board");
-     bDiv.innerHTML = "";
-     Object.keys(pData).map(n => ({name:n, score:pData[n]}))
-        .sort((a,b) => b.score - a.score)
-        .forEach(p => bDiv.innerHTML += `<div style="font-size:18px;">🥇 <strong>${p.name}</strong>: ${p.score} נקודות</div>`);
-  });
-}
-
-function fetchAnswersForVoting() {
-  db.ref('answers').once('value', snap => {
-    let answers = snap.val() || {};
-    let vBox = document.getElementById("voteBox");
-    vBox.innerHTML = "<h3>🗳️ לחץ על התשובה הכי טובה:</h3>";
-    Object.keys(answers).forEach(id => {
-      let a = answers[id];
-      if(a.name !== myName) {
-        vBox.innerHTML += `<button onclick="vote('${id}', '${a.name}')">הצבע ל: "${a.text}"</button><br>`;
-      }
-    });
-  });
-}
-
-function fetchAnswersForResults() {
-  db.ref('answers').once('value', snap => {
-    let answers = snap.val() || {};
-    let resBox = document.getElementById("answersResults");
-    resBox.innerHTML = "";
-    Object.keys(answers).forEach(id => {
-      let a = answers[id];
-      resBox.innerHTML += `<div class='card'><strong>${a.name}</strong> רשם: "${a.text}" ➔ 🗳️ <strong>${a.votes}</strong> הצבעות</div>`;
-    });
-  });
-}
 </script>
+
 </body>
 </html>
