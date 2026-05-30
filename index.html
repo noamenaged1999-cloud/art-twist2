@@ -11,15 +11,17 @@
 <style>
 body { font-family: 'Segoe UI', Arial, sans-serif; margin:0; background:#111; color:white; text-align:center; }
 .container { padding:20px; max-width: 600px; margin: 0 auto; }
-img { max-width:90%; max-height: 300px; border-radius:12px; margin-top:10px; object-fit: contain; }
+img { max-width:90%; max-height: 280px; border-radius:12px; margin-top:10px; object-fit: contain; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 button { padding:12px 20px; margin:5px; border-radius:8px; border:none; cursor:pointer; font-weight:bold; background:#00adb5; color:white; font-size:16px; }
 button:hover { background:#007a80; }
-.card { background:#222; padding:15px; margin:10px auto; border-radius:12px; width: 90%; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; background:#222; color:white; font-size:16px; text-align:center; }
+.card { background:#222; padding:15px; margin:10px auto; border-radius:12px; width: 90%; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-size: 18px; }
+input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; background:#222; color:white; font-size:16px; text-align:center; width: 80%; }
 #qrcode { background: white; padding: 10px; display: inline-block; border-radius: 8px; margin-top: 15px; }
 .flex-center { display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.admin-panel { background: #222; border: 2px dashed #ff5722; padding: 15px; margin-top: 30px; border-radius: 12px; }
 .admin-btn { background: #ff5722; }
 .admin-btn:hover { background: #e64a19; }
+.status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; background: #333; font-weight: bold; margin-bottom: 10px; }
 </style>
 </head>
 <body>
@@ -31,11 +33,12 @@ input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; back
 <div id="join">
   <p>הכנס את שמך כדי להצטרף למשחק:</p>
   <input id="name" placeholder="שם שחקן..."/>
+  <br>
   <button onclick="join()">הצטרף למשחק</button>
   
   <hr style="border-color:#333; margin:20px 0;">
-  <h3>הזמן חברים למשחק!</h3>
-  <p>סרקו את קוד ה-QR כדי להצטרף:</p>
+  <h3>הזמנת שחקנים</h3>
+  <p>סרקו את הקוד כדי להצטרף מהטלפון:</p>
   <div class="flex-center">
     <div id="qrcode"></div>
   </div>
@@ -43,194 +46,187 @@ input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; back
 
 <div id="game" style="display:none">
 
-<h2 id="title"></h2>
-<h3 id="artist" style="color:#aaa;"></h3>
-<img id="img" alt="Art"/>
+  <div id="statusBadge" class="status-badge">טוען מצב...</div>
+  
+  <h2 id="title"></h2>
+  <h3 id="artist" style="color:#aaa; font-weight: normal; margin-top:-10px;"></h3>
+  <img id="img" alt="Art"/>
 
-<h3 id="question" style="color:#00adb5; font-size:22px;"></h3>
+  <h3 id="question" style="color:#00adb5; font-size:22px; margin: 15px 0;"></h3>
 
-<div id="answerBox">
-  <input id="answer" placeholder="התשובה היצירתית שלך..."/>
-  <button onclick="submitAnswer()">שלח תשובה</button>
-</div>
+  <div id="writeStage" style="display:none;">
+    <div id="answerBox">
+      <input id="answer" placeholder="התשובה המצחיקה/יצירתית שלך..."/>
+      <br>
+      <button onclick="submitAnswer()">שלח תשובה חסויה 🔒</button>
+    </div>
+    <div id="waitMessage" style="display:none;" class="card">
+      תשובתך נשמרה בסוד! מחכים ששאר השחקנים יסיימו לכתוב... ⏳
+    </div>
+  </div>
 
-<h3>תשובות השחקנים:</h3>
-<div id="answers"></div>
+  <div id="voteStage" style="display:none;">
+    <h3>🗳 הזמן להצביע!</h3>
+    <p>לחצו על התשובה שהכי אהבתם (אסור להצביע לעצמכם):</p>
+    <div id="voteBox"></div>
+  </div>
 
-<h3>🗳 הצבעה</h3>
-<p>לחץ על התשובה שהכי אהבת (אסור להצביע לעצמך!)</p>
-<div id="voteBox"></div>
+  <div id="resultsStage" style="display:none;">
+    <h3>📊 תוצאות הסיבוב:</h3>
+    <div id="answersResults"></div>
+  </div>
 
-<h2>🏆 טבלת מובילים</h2>
-<div id="board"></div>
+  <hr style="border-color:#333; margin:20px 0;">
+  <h2>🏆 טבלת מובילים כללית</h2>
+  <div id="board"></div>
 
-<br>
-<button class="admin-btn" onclick="nextRound()">סיבוב הבא (מנהל) ➔</button>
+  <div class="admin-panel">
+    <p style="color:#ff5722; margin-top:0; font-weight:bold;">🎛 שלטי ניהול משחק:</p>
+    <button class="admin-btn" onclick="setStage('vote')">1. חשוף תשובות ועבור להצבעה 🗳</button>
+    <button class="admin-btn" onclick="setStage('results')">2. חשוף שמות ותוצאות סיבוב 📊</button>
+    <button class="admin-btn" style="background:#4caf50;" onclick="nextRound()">3. עבר לסיבוב הבא ➔</button>
+  </div>
 
 </div>
 
 </div>
 
 <script>
-// הגדרות Firebase זמניות (פומביות לטובת הבדיקה שלך)
-const firebaseConfig = {
-  databaseURL: "https://art-twist-default-rtdb.firebaseio.com/"
-};
+const firebaseConfig = { databaseURL: "https://art-twist-default-rtdb.firebaseio.com/" };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// נתוני המשחק
 let myName = "";
+let hasAnswered = false;
+
 const rounds = [
- {
-  title:"מונה ליזה",
-  artist:"לאונרדו דה וינצ'י",
-  img:"https://upload.wikimedia.org/wikipedia/commons/6/6a/Mona_Lisa.jpg",
-  question:"למה לדעתכם הציור הזה נהיה כל כך מפורסם בעולם?"
- },
- {
-  title:"הצעקה",
-  artist:"אדוורד מונק",
-  img:"https://upload.wikimedia.org/wikipedia/commons/f/f4/The_Scream.jpg",
-  question:"מה גרם לדמות בציור לצרוח ככה?"
- },
- {
-  title:"הנשיקה",
-  artist:"גוסטב קלימט",
-  img:"https://upload.wikimedia.org/wikipedia/commons/4/4d/The_Kiss_-_Gustav_Klimt_-_Google_Cultural_Institute.jpg",
-  question:"מה באמת קורה בין שתי הדמויות ברגע זה?"
- }
+ { title:"מונה ליזה", artist:"לאונרדו דה וינצ'י", img:"https://upload.wikimedia.org/wikipedia/commons/6/6a/Mona_Lisa.jpg", question:"למה לדעתכם הציור הזה נהיה כל כך מפורסם בעולם?" },
+ { title:"הצעקה", artist:"אדוורד מונק", img:"https://upload.wikimedia.org/wikipedia/commons/f/f4/The_Scream.jpg", question:"מה גרם לדמות בציור לצרוח ככה?" },
+ { title:"הנשיקה", artist:"גוסטב קלימט", img:"https://upload.wikimedia.org/wikipedia/commons/4/4d/The_Kiss_-_Gustav_Klimt_-_Google_Cultural_Institute.jpg", question:"מה באמת קורה בין שתי הדמויות ברגע זה?" }
 ];
 
-// יצירת קוד QR אוטומטי לפי כתובת האתר הנוכחית
-new QRCode(document.getElementById("qrcode"), {
-    text: window.location.href,
-    width: 180,
-    height: 180
-});
+new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 160, height: 160 });
 
-// פונקציית כניסה למשחק
 function join(){
  myName = document.getElementById("name").value.trim();
  if(!myName) return alert("אנא הכנס שם תקין");
 
- // הוספת השחקן לבסיס הנתונים עם 0 נקודות (אם הוא לא קיים)
- db.ref('players/' + myName).transaction((currentScore) => {
-    return currentScore === null ? 0 : currentScore;
- });
-
+ db.ref('players/' + myName).transaction((score) => score === null ? 0 : score);
  document.getElementById("join").style.display="none";
  document.getElementById("game").style.display="block";
 
- // האזנה לשינויים בזמן אמת מהשרת
  listenToGame();
 }
 
-// שליחת תשובה לשרת
 function submitAnswer(){
  let text = document.getElementById("answer").value.trim();
  if(!text) return;
  
- db.ref('answers').push({
-   name: myName,
-   text: text,
-   votes: 0
- });
- 
- document.getElementById("answer").value = "";
- document.getElementById("answerBox").style.display = "none"; // מסתיר אחרי שליחה שלא ישלחו פעמיים
+ db.ref('answers').push({ name: myName, text: text, votes: 0 });
+ hasAnswered = true;
+ document.getElementById("answerBox").style.display = "none";
+ document.getElementById("waitMessage").style.display = "block";
 }
 
-// פונקציית הצבעה
 function vote(answerId, answerOwner){
- if(answerOwner === myName) {
-    alert("אתה לא יכול להצביע לתשובה של עצמך!");
-    return;
- }
+ if(answerOwner === myName) return alert("אסור להצביע לעצמך!");
  
- // העלאת הניקוד של התשובה
  db.ref('answers/' + answerId + '/votes').transaction(v => (v || 0) + 1);
- // העלאת הניקוד של השחקן שכתב את התשובה הזו
  db.ref('players/' + answerOwner).transaction(s => (s || 0) + 1);
  
- document.getElementById("voteBox").style.display = "none"; // מניעת הצבעה כפולה בסיבוב
+ document.getElementById("voteBox").innerHTML = "<div class='card'>הצבעתך התקבלה! ממתינים לתוצאות... 🗳️</div>";
 }
 
-// מעבר סיבוב (מסתנכרן לכולם)
+// פונקציות ניהול שלבים
+function setStage(stageName) {
+  db.ref('gameStatus/stage').set(stageName);
+}
+
 function nextRound(){
- db.ref('gameStatus/round').transaction(r => {
-    let next = (r || 0) + 1;
-    if(next >= rounds.length) next = 0;
-    return next;
- });
- // איפוס התשובות בשרת לקראת הסיבוב החדש
+ db.ref('gameStatus/round').transaction(r => ((r || 0) + 1) % rounds.length);
  db.ref('answers').remove();
+ db.ref('gameStatus/stage').set('write');
 }
 
-// האזנה לשינויים בזמן אמת ב-Firebase
 function listenToGame() {
-  
-  // 1. האזנה לסיבוב הנוכחי
-  db.ref('gameStatus/round').on('value', snapshot => {
-     let roundIndex = snapshot.val() || 0;
-     loadRound(roundIndex);
+  // האזנה לסיבוב
+  db.ref('gameStatus/round').on('value', snap => {
+     let rIdx = snap.val() || 0;
+     let r = rounds[rIdx];
+     document.getElementById("title").innerText = r.title;
+     document.getElementById("artist").innerText = r.artist;
+     document.getElementById("img").src = r.img;
+     document.getElementById("question").innerText = r.question;
+     
+     // איפוס הגדרות מקומיות בסיבוב חדש
+     if(!hasAnswered) {
+        document.getElementById("answer").value = "";
+        document.getElementById("answerBox").style.display = "block";
+        document.getElementById("waitMessage").style.display = "none";
+     }
   });
 
-  // 2. האזנה לתשובות ולהצבעות
-  db.ref('answers').on('value', snapshot => {
-     let answersData = snapshot.val() || {};
-     renderAnswers(answersData);
+  // האזנה לשלבי המשחק ועדכון המסך בזמן אמת לכולם
+  db.ref('gameStatus/stage').on('value', snap => {
+     let stage = snap.val() || 'write';
+     
+     document.getElementById("writeStage").style.display = "none";
+     document.getElementById("voteStage").style.display = "none";
+     document.getElementById("resultsStage").style.display = "none";
+
+     if(stage === 'write') {
+        document.getElementById("statusBadge").innerText = "✍️ שלב הכתיבה";
+        document.getElementById("writeStage").style.display = "block";
+        hasAnswered = false;
+     } 
+     else if(stage === 'vote') {
+        document.getElementById("statusBadge").innerText = "🗳️ שלב ההצבעה";
+        document.getElementById("voteStage").style.display = "block";
+        fetchAnswersForVoting();
+     } 
+     else if(stage === 'results') {
+        document.getElementById("statusBadge").innerText = "📊 תוצאות הסיבוב";
+        document.getElementById("resultsStage").style.display = "block";
+        fetchAnswersForResults();
+     }
   });
 
-  // 3. האזנה לטבלת המובילים
-  db.ref('players').on('value', snapshot => {
-     let playersData = snapshot.val() || {};
-     renderLeaderboard(playersData);
+  // האזנה לטבלה הכללית
+  db.ref('players').on('value', snap => {
+     let pData = snap.val() || {};
+     let bDiv = document.getElementById("board");
+     bDiv.innerHTML = "";
+     Object.keys(pData).map(n => ({name:n, score:pData[n]}))
+        .sort((a,b) => b.score - a.score)
+        .forEach(p => bDiv.innerHTML += `<div>🥇 <strong>${p.name}</strong>: ${p.score}pt</div>`);
   });
 }
 
-// טעינת פרטי הסיבוב על המסך
-function loadRound(roundIndex){
- let r = rounds[roundIndex];
- document.getElementById("title").innerText = r.title;
- document.getElementById("artist").innerText = r.artist;
- document.getElementById("img").src = r.img;
- document.getElementById("question").innerText = r.question;
- 
- // החזרת תיבת הטקסט וההצבעות לפעילות בסיבוב חדש
- document.getElementById("answerBox").style.display = "block";
- document.getElementById("voteBox").style.display = "block";
+function fetchAnswersForVoting() {
+  db.ref('answers').once('value', snap => {
+    let answers = snap.val() || {};
+    let vBox = document.getElementById("voteBox");
+    vBox.innerHTML = "";
+    Object.keys(answers).forEach(id => {
+      let a = answers[id];
+      // מציג רק את הטקסט בלי השם (כדי שלא ידעו של מי התשובה!)
+      vBox.innerHTML += `<button onclick="vote('${id}', '${a.name}')">הצבע ל: "${a.text}"</button><br>`;
+    });
+  });
 }
 
-// רינדור התשובות וההצבעות בזמן אמת
-function renderAnswers(answersData) {
- let aDiv = document.getElementById("answers");
- let vDiv = document.getElementById("voteBox");
- 
- aDiv.innerHTML = "";
- vDiv.innerHTML = "";
-
- Object.keys(answersData).forEach(id => {
-    let a = answersData[id];
-    aDiv.innerHTML += `<div class='card'><strong>${a.name}:</strong> ${a.text} (${a.votes} הצבעות)</div>`;
-    vDiv.innerHTML += `<button onclick="vote('${id}', '${a.name}')">הצבע ל: "${a.text}"</button>`;
- });
-}
-
-// רינדור טבלת הניקוד
-function renderLeaderboard(playersData) {
- let bDiv = document.getElementById("board");
- bDiv.innerHTML = "";
- 
- // הפיכה למערך ומיון מהגבוה לנמוך
- let sorted = Object.keys(playersData).map(name => ({name: name, score: playersData[name]}))
-                    .sort((a,b) => b.score - a.score);
-
- sorted.forEach(p => {
-    bDiv.innerHTML += `<div style="font-size:18px; margin:5px;">🥇 <strong>${p.name}</strong>: ${p.score} נקודות</div>`;
- });
+function fetchAnswersForResults() {
+  db.ref('answers').once('value', snap => {
+    let answers = snap.val() || {};
+    let resBox = document.getElementById("answersResults");
+    resBox.innerHTML = "";
+    Object.keys(answers).forEach(id => {
+      let a = answers[id];
+      // כאן חושפים את השם ואת מספר ההצבעות שקיבל
+      resBox.innerHTML += `<div class='card'><strong>${a.name}</strong> רשם: "${a.text}" ➔ 🗳️ <strong>${a.votes}</strong> הצבעות</div>`;
+    });
+  });
 }
 </script>
-
 </body>
 </html>
