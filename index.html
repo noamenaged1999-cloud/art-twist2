@@ -18,7 +18,7 @@ button:hover { background:#007a80; }
 input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; background:#222; color:white; font-size:16px; text-align:center; width: 80%; }
 #qrcode { background: white; padding: 10px; display: inline-block; border-radius: 8px; margin-top: 15px; }
 .flex-center { display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.admin-panel { background: #222; border: 2px dashed #ff5722; padding: 15px; margin-top: 30px; border-radius: 12px; }
+.admin-panel { background: #222; border: 2px dashed #ff5722; padding: 15px; margin-top: 30px; border-radius: 12px; display: none; }
 .admin-btn { background: #ff5722; }
 .admin-btn:hover { background: #e64a19; }
 .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; background: #333; font-weight: bold; margin-bottom: 10px; }
@@ -30,21 +30,24 @@ input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; back
 
 <h1>🎨 Art Twist LIVE</h1>
 
-<div id="join">
+<div id="joinSection" style="display:none;">
   <p>הכנס את שמך כדי להצטרף למשחק:</p>
-  <input id="name" placeholder="שם שחקן..."/>
+  <input id="playerNameInput" placeholder="שם שחקן..."/>
   <br>
-  <button onclick="join()">הצטרף למשחק</button>
-  
-  <hr style="border-color:#333; margin:20px 0;">
-  <h3>הזמנת שחקנים</h3>
-  <p>סרקו את הקוד כדי להצטרף מהטלפון:</p>
+  <button onclick="joinGameAsPlayer()">הצטרף למשחק 🎮</button>
+</div>
+
+<div id="adminQrView" style="display:none;">
+  <h3>הזמנת שחקנים לקבוצה</h3>
+  <p>סרקו את הקוד מהטלפון כדי להיכנס כשחקנים:</p>
   <div class="flex-center">
     <div id="qrcode"></div>
   </div>
+  <br>
+  <button onclick="startAdminGame()" style="background:#4caf50;">הכל מוכן? התחל להקרין את המשחק! 🎬</button>
 </div>
 
-<div id="game" style="display:none">
+<div id="gameArea" style="display:none">
 
   <div id="statusBadge" class="status-badge">טוען מצב...</div>
   
@@ -56,23 +59,21 @@ input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; back
 
   <div id="writeStage" style="display:none;">
     <div id="answerBox">
-      <input id="answer" placeholder="התשובה המצחיקה/יצירתית שלך..."/>
+      <input id="answerInput" placeholder="התשובה המצחיקה/יצירתית שלך..."/>
       <br>
-      <button onclick="submitAnswer()">שלח תשובה חסויה 🔒</button>
+      <button onclick="submitPlayerAnswer()">שלח תשובה חסויה 🔒</button>
     </div>
     <div id="waitMessage" style="display:none;" class="card">
-      תשובתך נשמרה בסוד! מחכים ששאר השחקנים יסיימו לכתוב... ⏳
+      תשובתך נשמרה בסוד! מחכים על המסך הגדול שכולם יסיימו... ⏳
     </div>
   </div>
 
   <div id="voteStage" style="display:none;">
-    <h3>🗳 הזמן להצביע!</h3>
-    <p>לחצו על התשובה שהכי אהבתם (אסור להצביע לעצמכם):</p>
     <div id="voteBox"></div>
   </div>
 
   <div id="resultsStage" style="display:none;">
-    <h3>📊 תוצאות הסיבוב:</h3>
+    <h3>📊 תשובות השחקנים:</h3>
     <div id="answersResults"></div>
   </div>
 
@@ -80,9 +81,9 @@ input { padding:12px; margin:5px; border-radius:8px; border:1px solid #444; back
   <h2>🏆 טבלת מובילים כללית</h2>
   <div id="board"></div>
 
-  <div class="admin-panel">
-    <p style="color:#ff5722; margin-top:0; font-weight:bold;">🎛 שלטי ניהול משחק:</p>
-    <button class="admin-btn" onclick="setStage('vote')">1. חשוף תשובות ועבור להצבעה 🗳</button>
+  <div id="adminPanel" class="admin-panel">
+    <p style="color:#ff5722; margin-top:0; font-weight:bold;">🎛 שלטי ניהול משחק (למקרן בלבד):</p>
+    <button class="admin-btn" onclick="setStage('vote')">1. חסום כתיבה ועבור לשלב ההצבעה 🗳️</button>
     <button class="admin-btn" onclick="setStage('results')">2. חשוף שמות ותוצאות סיבוב 📊</button>
     <button class="admin-btn" style="background:#4caf50;" onclick="nextRound()">3. עבר לסיבוב הבא ➔</button>
   </div>
@@ -97,6 +98,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 let myName = "";
+let isPlayer = false;
 let hasAnswered = false;
 
 const rounds = [
@@ -105,21 +107,42 @@ const rounds = [
  { title:"הנשיקה", artist:"גוסטב קלימט", img:"https://upload.wikimedia.org/wikipedia/commons/4/4d/The_Kiss_-_Gustav_Klimt_-_Google_Cultural_Institute.jpg", question:"מה באמת קורה בין שתי הדמויות ברגע זה?" }
 ];
 
-new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 160, height: 160 });
+// בדיקה האם הגעתי כשחקן מה-QR
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('role') === 'player') {
+  isPlayer = true;
+  document.getElementById("joinSection").style.display = "block";
+} else {
+  // אני המנהל במחשב
+  document.getElementById("adminQrView").style.display = "block";
+  new QRCode(document.getElementById("qrcode"), { 
+    text: window.location.href.split('?')[0] + "?role=player", 
+    width: 180, 
+    height: 180 
+  });
+}
 
-function join(){
- myName = document.getElementById("name").value.trim();
+function startAdminGame() {
+  document.getElementById("adminQrView").style.display = "none";
+  document.getElementById("adminPanel").style.display = "block";
+  document.getElementById("gameArea").style.display = "block";
+  myName = "מנהל";
+  listenToGame();
+}
+
+function joinGameAsPlayer(){
+ myName = document.getElementById("playerNameInput").value.trim();
  if(!myName) return alert("אנא הכנס שם תקין");
 
  db.ref('players/' + myName).transaction((score) => score === null ? 0 : score);
- document.getElementById("join").style.display="none";
- document.getElementById("game").style.display="block";
+ document.getElementById("joinSection").style.display = "none";
+ document.getElementById("gameArea").style.display = "block";
 
  listenToGame();
 }
 
-function submitAnswer(){
- let text = document.getElementById("answer").value.trim();
+function submitPlayerAnswer(){
+ let text = document.getElementById("answerInput").value.trim();
  if(!text) return;
  
  db.ref('answers').push({ name: myName, text: text, votes: 0 });
@@ -129,18 +152,13 @@ function submitAnswer(){
 }
 
 function vote(answerId, answerOwner){
- if(answerOwner === myName) return alert("אסור להצביע לעצמך!");
- 
+ if(answerOwner === myName) return alert("נוכל! אסור להצביע לעצמך!");
  db.ref('answers/' + answerId + '/votes').transaction(v => (v || 0) + 1);
  db.ref('players/' + answerOwner).transaction(s => (s || 0) + 1);
- 
  document.getElementById("voteBox").innerHTML = "<div class='card'>הצבעתך התקבלה! ממתינים לתוצאות... 🗳️</div>";
 }
 
-// פונקציות ניהול שלבים
-function setStage(stageName) {
-  db.ref('gameStatus/stage').set(stageName);
-}
+function setStage(stageName) { db.ref('gameStatus/stage').set(stageName); }
 
 function nextRound(){
  db.ref('gameStatus/round').transaction(r => ((r || 0) + 1) % rounds.length);
@@ -149,7 +167,6 @@ function nextRound(){
 }
 
 function listenToGame() {
-  // האזנה לסיבוב
   db.ref('gameStatus/round').on('value', snap => {
      let rIdx = snap.val() || 0;
      let r = rounds[rIdx];
@@ -158,15 +175,14 @@ function listenToGame() {
      document.getElementById("img").src = r.img;
      document.getElementById("question").innerText = r.question;
      
-     // איפוס הגדרות מקומיות בסיבוב חדש
-     if(!hasAnswered) {
-        document.getElementById("answer").value = "";
+     if(isPlayer) {
+        document.getElementById("answerInput").value = "";
         document.getElementById("answerBox").style.display = "block";
         document.getElementById("waitMessage").style.display = "none";
+        hasAnswered = false;
      }
   });
 
-  // האזנה לשלבי המשחק ועדכון המסך בזמן אמת לכולם
   db.ref('gameStatus/stage').on('value', snap => {
      let stage = snap.val() || 'write';
      
@@ -176,13 +192,14 @@ function listenToGame() {
 
      if(stage === 'write') {
         document.getElementById("statusBadge").innerText = "✍️ שלב הכתיבה";
-        document.getElementById("writeStage").style.display = "block";
-        hasAnswered = false;
+        if(isPlayer) document.getElementById("writeStage").style.display = "block";
      } 
      else if(stage === 'vote') {
         document.getElementById("statusBadge").innerText = "🗳️ שלב ההצבעה";
-        document.getElementById("voteStage").style.display = "block";
-        fetchAnswersForVoting();
+        if(isPlayer) {
+          document.getElementById("voteStage").style.display = "block";
+          fetchAnswersForVoting();
+        }
      } 
      else if(stage === 'results') {
         document.getElementById("statusBadge").innerText = "📊 תוצאות הסיבוב";
@@ -191,14 +208,13 @@ function listenToGame() {
      }
   });
 
-  // האזנה לטבלה הכללית
   db.ref('players').on('value', snap => {
      let pData = snap.val() || {};
      let bDiv = document.getElementById("board");
      bDiv.innerHTML = "";
      Object.keys(pData).map(n => ({name:n, score:pData[n]}))
         .sort((a,b) => b.score - a.score)
-        .forEach(p => bDiv.innerHTML += `<div>🥇 <strong>${p.name}</strong>: ${p.score}pt</div>`);
+        .forEach(p => bDiv.innerHTML += `<div style="font-size:18px;">🥇 <strong>${p.name}</strong>: ${p.score} נקודות</div>`);
   });
 }
 
@@ -206,11 +222,12 @@ function fetchAnswersForVoting() {
   db.ref('answers').once('value', snap => {
     let answers = snap.val() || {};
     let vBox = document.getElementById("voteBox");
-    vBox.innerHTML = "";
+    vBox.innerHTML = "<h3>🗳️ לחץ על התשובה הכי טובה:</h3>";
     Object.keys(answers).forEach(id => {
       let a = answers[id];
-      // מציג רק את הטקסט בלי השם (כדי שלא ידעו של מי התשובה!)
-      vBox.innerHTML += `<button onclick="vote('${id}', '${a.name}')">הצבע ל: "${a.text}"</button><br>`;
+      if(a.name !== myName) {
+        vBox.innerHTML += `<button onclick="vote('${id}', '${a.name}')">הצבע ל: "${a.text}"</button><br>`;
+      }
     });
   });
 }
@@ -222,7 +239,6 @@ function fetchAnswersForResults() {
     resBox.innerHTML = "";
     Object.keys(answers).forEach(id => {
       let a = answers[id];
-      // כאן חושפים את השם ואת מספר ההצבעות שקיבל
       resBox.innerHTML += `<div class='card'><strong>${a.name}</strong> רשם: "${a.text}" ➔ 🗳️ <strong>${a.votes}</strong> הצבעות</div>`;
     });
   });
